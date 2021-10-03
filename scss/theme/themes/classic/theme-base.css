@@ -1,0 +1,15 @@
+[data-fadeshow] {
+  width: 100%;
+  height: 100%;
+}
+
+[data-fadeshow] .fs-slides {
+  height: 100%;
+}
+
+[data-fadeshow] .fs-slide-bg {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+/*# sourceMappingURL=theme-base.css.map */
