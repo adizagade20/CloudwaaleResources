@@ -1,0 +1,96 @@
+@RestResource(URlMapping='/PostMethodExample') 
+global class PostMethodExample {
+    
+    private static String objectName ='Account';
+    private static Account sObj;
+    private static List<String> fieldLabels;
+    private static List<String> fieldNames {get; set;}
+    private static List<String> fieldDatatypes;
+    
+    @httpPost
+    global static void createRecord() {
+        RestRequest request = RestContext.request;
+        String reqDataAsString = request.requestBody.toString();
+        Map<String, Object> reqData = parse(reqDataAsString);
+        
+        sObj = new Account();
+        fieldLabels = new List<String>();
+        fieldNames = new List<String>();
+        fieldDatatypes = new List<String>();
+        
+        getObjectFields();
+        checkDatatypesAndAssign(reqData);
+        insert sObj;
+    }
+    
+    private static void checkDatatypesAndAssign(Map<String, Object> reqData) {
+        
+        for(String key: reqData.keySet()) {
+            Integer index = fieldNames.indexOf(key.toLowerCase());
+          
+            switch on fieldDatatypes[index] {
+                when 'ADDRESS' {
+                    Map<String, Object> addr = (Map<String, Object>) reqData.get(key);
+                    for(String addKey: addr.keySet()) {
+                        sObj.put(addKey, addr.get(addKey));
+                    }
+                }
+                when 'BOOLEAN' {
+                    if(reqData.get(key).toString().toLowerCase() == 'false') {
+                        sObj.put(fieldNames[index], false);
+                    }
+                    else if(reqData.get(key).toString().toLowerCase() == 'true') {
+                        sObj.put(fieldNames[index], true);
+                    }
+                }
+                when 'CURRENCY' {
+                    Decimal value = Decimal.valueOf(String.isEmpty(reqData.get(key).toString()) ? '0' : reqData.get(key).toString());
+                    value.setScale(2, roundingMode.HALF_EVEN);
+                    sObj.put(fieldNames[index], value);
+                }
+                when 'DATE' {
+                    sObj.put(fieldNames[index], Date.parse(reqData.get(key).toString()));
+                }
+                when 'DATETIME' {
+                    sObj.put(fieldNames[index], JSON.deserialize(reqData.get(key).toString(), DateTime.class));
+                }
+                when 'DOUBLE' {
+                    sObj.put(fieldNames[index], Decimal.valueOf(reqData.get(key).toString()));
+                }
+                when 'EMAIL' {
+                    Matcher matcher = Pattern.compile('[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+').matcher(reqData.get(key).toString());
+                    while (matcher.find()) {
+                        sObj.put(fieldNames[index], matcher.group());
+                    }
+                }
+                when 'INTEGER' {
+                    sObj.put(fieldNames[index], Integer.valueOf(reqData.get(key)));
+                }
+                when 'PHONE' {
+                    sObj.put(fieldNames[index], reqData.get(key).toString().replaceAll('\\D',''));
+                }
+                when 'PICKLIST', 'STRING', 'TEXTAREA', 'URL' {
+                    sObj.put(fieldNames[index], reqData.get(key).toString());
+                }
+                when else {
+                    sObj.put(fieldNames[index], reqData.get(key));
+                }
+            }
+        }
+    }
+    
+    private static Map<String, Object> parse(String inputJson) {
+        return (Map<String, Object>) System.JSON.deserializeUntyped(inputJson);
+    }    
+    
+    private static void getObjectFields() {
+        Map<String, Schema.SObjectField> fieldMap = Schema.getGlobalDescribe().get(objectName).getDescribe().fields.getMap();
+        
+        for (String fieldName: fieldMap.keySet()) {
+            fieldLabels.add(fieldMap.get(fieldName).getDescribe().getLabel());
+            fieldNames.add(fieldName);
+            fieldDatatypes.add(String.valueOf(fieldMap.get(fieldName).getDescribe().getType()));
+        }
+    }
+    
+}
